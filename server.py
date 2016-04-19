@@ -42,14 +42,10 @@ class DebugServerHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
       content_len = int(self.headers.getheader('content-length', 0))
       post_body = self.rfile.read(content_len)
       jsonObj = json.loads(post_body)
-      outLine = ""
+      time = strftime("%Y-%m-%d %H:%M:%S", gmtime())
       for (k, v) in jsonObj.iteritems():
-        outLine += "%s = %s, "%(str(k),str(v))
-
-      with open(LOG_FILE, "a") as f:
-        time = strftime("%Y-%m-%d %H:%M:%S", gmtime())
-        f.write("%s, %s\n"%(time,outLine))
-      print(outLine)
+        with open("%s.%s.log" % (LOG_FILE, k), "a+") as f:
+          f.write("%s, %s\n" %(time, v))
 
       # Process response and headers
       self.send_response(200)

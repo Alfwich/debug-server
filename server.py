@@ -10,9 +10,9 @@ if len(sys.argv) > 1:
         print "Port is not an int. Defaulting to 8080"
         PORT = 8080
 
-LOG_FILE = "out.log"
+LOG_FILE_PREFIX = "out"
 if len(sys.argv) > 2:
-  LOG_FILE = sys.argv[2]
+  LOG_FILE_PREFIX = sys.argv[2]
 
 def start_server():
     server_address = ("", PORT)
@@ -44,11 +44,12 @@ class DebugServerHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
       jsonObj = json.loads(post_body)
       time = strftime("%Y-%m-%d %H:%M:%S", gmtime())
       for (k, v) in jsonObj.iteritems():
-        with open("%s.%s.log" % (LOG_FILE, k), "a+") as f:
+        with open("%s.%s.log" % (LOG_FILE_PREFIX, k), "a+") as f:
           f.write("%s, %s\n" %(time, v))
 
       # Process response and headers
       self.send_response(200)
+      self.send_header( "Access-Control-Allow-Origin", "*" )
       self.end_headers()
 
 

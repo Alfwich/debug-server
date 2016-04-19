@@ -1,14 +1,18 @@
 import threading, webbrowser, cgi, BaseHTTPServer, SimpleHTTPServer, os, sys, json
+from time import gmtime, strftime
 from subprocess import *
 
 PORT = 8080
-
-if len( sys.argv ) > 1:
+if len(sys.argv) > 1:
     try:
         PORT = int(sys.argv[1])
     except ValueError:
         print "Port is not an int. Defaulting to 8080"
         PORT = 8080
+
+LOG_FILE = "out.log"
+if len(sys.argv) > 2:
+  LOG_FILE = sys.argv[2]
 
 def start_server():
     server_address = ("", PORT)
@@ -19,33 +23,37 @@ class DebugServerHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
 
     # Server methods
     def getPostData(self):
-      result = {}
-      form = cgi.FieldStorage(
-          fp=self.rfile,
-          headers=self.headers,
-          environ={'REQUEST_METHOD':'POST',
-                   'CONTENT_TYPE':self.headers['Content-Type'],
-      })
+    
+      postvars = {}
+      ctype, pdict = cgi.parse_header(self.headers.getheader('content-type'))
+      if ctype == 'multipart/form-data':
+          postvars = cgi.parse_multipart(self.rfile, pdict)
+      elif ctype == 'application/x-www-form-urlencoded':
+          length = int(self.headers.getheader('content-length'))
+          postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
 
-      for item in form.list:
-        result[item.name] = item.value
-      return result
+      return postvars 
 
     def end_headers(self):
       SimpleHTTPServer.SimpleHTTPRequestHandler.end_headers(self)
 
     def do_POST(self):
-      try:
-        # Handle the command from the web client
-        post = self.getPostData()
-        for k,v in post.iteritems():
-            print(k, v)
+      # Handle the command from the web client
+      content_len = int(self.headers.getheader('content-length', 0))
+      post_body = self.rfile.read(content_len)
+      jsonObj = json.loads(post_body)
+      outLine = ""
+      for (k, v) in jsonObj.iteritems():
+        outLine += "%s = %s, "%(str(k),str(v))
 
-        # Process response and headers
-        self.send_response(200)
-        self.end_headers()
-      except Exception as e:
-        print("Could not write debug to file")
+      with open(LOG_FILE, "a") as f:
+        time = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+        f.write("%s, %s\n"%(time,outLine))
+      print(outLine)
+
+      # Process response and headers
+      self.send_response(200)
+      self.end_headers()
 
 
 if __name__ == "__main__":
